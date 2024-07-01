@@ -1,5 +1,6 @@
 import asyncio
 import re
+import argparse
 from pprint import pprint
 from urllib.parse import urlencode, urlparse, urlunparse
 
@@ -7,12 +8,9 @@ import aiohttp
 import requests
 from bs4 import BeautifulSoup
 
-
-class BunkrScrapingError(Exception):
-    pass
-
-
 type results_dict = dict[str, dict[str, int | str]]
+
+from . import BunkrScrapingError
 
 
 class BunkrScraper:
@@ -111,7 +109,12 @@ class BunkrScraper:
 
 
 if __name__ == "__main__":
-    search_term = input("Enter search term for bunkr: ")
-    scraper = BunkrScraper(search_term)
+    parser = argparse.ArgumentParser(description="Bunkr Scraper")
+    parser.add_argument("search_term", type=str, help="Search term for Bunkr")
+    args = parser.parse_args()
+
+    scraper = BunkrScraper(args.search_term)
+    sync_scraper = SynchronousBunkrScraper(args.search_term)
     results = scraper.run_scraper()
+    sync_results = sync_scraper.run_scraper()
     pprint(results)

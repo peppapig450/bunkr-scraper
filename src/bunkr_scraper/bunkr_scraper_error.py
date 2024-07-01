@@ -1,0 +1,2 @@
+class BunkrScrapingError(Exception):
+    pass
