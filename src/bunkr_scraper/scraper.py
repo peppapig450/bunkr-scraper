@@ -1,7 +1,5 @@
 import asyncio
 import re
-import argparse
-from pprint import pprint
 from urllib.parse import urlencode, urlparse, urlunparse
 
 import aiohttp
@@ -106,15 +104,3 @@ class BunkrScraper:
         asyncio.run(self.scrape_data_from_links())
 
         return self.results
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Bunkr Scraper")
-    parser.add_argument("search_term", type=str, help="Search term for Bunkr")
-    args = parser.parse_args()
-
-    scraper = BunkrScraper(args.search_term)
-    sync_scraper = SynchronousBunkrScraper(args.search_term)
-    results = scraper.run_scraper()
-    sync_results = sync_scraper.run_scraper()
-    pprint(results)
