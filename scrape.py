@@ -1,10 +1,11 @@
-import requests
-from urllib.parse import urlparse, urlencode, urlunparse
-from bs4 import BeautifulSoup
 import asyncio
-import aiohttp
 import re
-from itertools import chain
+from pprint import pprint
+from urllib.parse import urlencode, urlparse, urlunparse
+
+import aiohttp
+import requests
+from bs4 import BeautifulSoup
 
 
 class BunkrScrapingError(Exception):
@@ -15,14 +16,15 @@ type results_dict = dict[str, dict[str, int | str]]
 
 
 class BunkrScraper:
+
     def __init__(self, search_term: str) -> None:
         self.base_url = "https://bunkr-albums.io/"
         self.search_url = self.create_url(search_term)
-        self.links: list[str] = []
+        self.links: list[str | list[str]] = []
         self.results: results_dict = {}
 
         # Compiled regex patterns
-        self.file_count_pattern = re.compile(r"(\d+) files")
+        self.file_count_pattern = re.compile(r"\s*(\d+)\s*files")
         self.size_pattern = re.compile(r"(\d+(\.d+)?) (KB|MB|GB|TB)")
 
     def create_url(self, search_term: str):
@@ -49,7 +51,7 @@ class BunkrScraper:
 
     def make_search_request(self, search_url: str):
         try:
-            response = requests.get(search_url)
+            response = requests.get(search_url, timeout=20)
             response.raise_for_status()
 
             # Access the HTML if the request is successful
@@ -64,11 +66,10 @@ class BunkrScraper:
     def scrape_bunkr_links(self, html_content: str):
         soup = BeautifulSoup(html_content, "lxml")
         bunkr_links = soup.select("tr > td > a[href]")
-        self.links = list(
-            chain.from_iterable(
-                link["href"] for link in bunkr_links if isinstance(link["href"], str)
-            )
-        )
+        scraped_folder_links = [
+            link["href"] for link in bunkr_links if isinstance(link["href"], str)
+        ]
+        self.links.extend(scraped_folder_links)
 
     async def fetch_link_html(self, url: str):
         async with aiohttp.ClientSession() as session:
@@ -80,11 +81,11 @@ class BunkrScraper:
         soup = BeautifulSoup(link_html, "lxml")
 
         # Find the span element containing files and size information
-        span = soup.select_one("span.text-[16px].break-normal")
+        span = soup.select_one("span.break-normal")
 
         if span:
-            span_text = span.get_text(strip=True)
-            file_count_match = self.file_count_pattern.search(span_text)
+            span_text = span.get_text()
+            file_count_match = self.file_count_pattern.match(span_text)
             size_match = self.size_pattern.search(span_text)
 
             file_count = int(file_count_match.group(1)) if file_count_match else 0
@@ -97,7 +98,8 @@ class BunkrScraper:
     async def scrape_data_from_links(self):
         async with asyncio.TaskGroup() as group:
             for link in self.links:
-                await group.create_task(self.scrape_data_from_link(link), name=link)
+                if isinstance(link, str):
+                    group.create_task(self.scrape_data_from_link(link), name=link)
 
     def run_scraper(self):
         html = self.make_search_request(self.search_url)
@@ -109,8 +111,7 @@ class BunkrScraper:
 
 
 if __name__ == "__main__":
-    search = input("Enter search term for bunkr: ")
-    url = create_url(search)
-    html = make_search_request(url)
-    links = scrape_bunkr_links(html)
-    print(links)
+    search_term = input("Enter search term for bunkr: ")
+    scraper = BunkrScraper(search_term)
+    results = scraper.run_scraper()
+    pprint(results)
