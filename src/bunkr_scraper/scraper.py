@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 type results_dict = dict[str, dict[str, int | str]]
 
-from . import BunkrScrapingError
+from .bunkr_scraper_error import BunkrScrapingError
 
 
 class BunkrScraper:
